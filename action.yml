@@ -1,0 +1,24 @@
+name: 'Move Card in Zenhub'
+description: 'This action integrates Zenhub api. To automatically move card between pipelines'
+inputs:
+  zh-repository-id:
+    description: 'repository id in zenhub'
+    required: true
+  zh-token:
+    description: 'token for zenhub api'
+    required: true
+  zh-workspace-id:
+    description: 'workspace id in zenhub'
+    required: true
+  zh-target-pipeline-id:
+    description: 'target pipeline id in zenhub'
+    required: false
+  zh-target-pipeline-name:
+    description: 'target pipeline name in zenhub'
+    required: false
+  commit-message:
+    description: 'commit message to parse issue'
+    required: true
+runs:
+  using: 'node12'
+  main: 'index.js'

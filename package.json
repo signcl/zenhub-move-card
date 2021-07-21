@@ -1,0 +1,14 @@
+{
+  "name": "zenhub-move-card",
+  "version": "0.0.1",
+  "description": "Move ZenHub issue between pipelines",
+  "main": "index.js",
+  "repository": "https://github.com/aisensiy/zenhub-move-card",
+  "author": "aisensiy",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "@actions/core": "^1.4.0",
+    "axios": "^0.21.1"
+  }
+}
