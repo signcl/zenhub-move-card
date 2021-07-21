@@ -1,5 +1,6 @@
 const { default: axios } = require("axios");
 const core = require("@actions/core");
+const { inspect } = require("util");
 
 async function moveCardToPipeline(
   repoId,
@@ -10,7 +11,7 @@ async function moveCardToPipeline(
   const url = `https://api.zenhub.com/p2/workspaces/${workspaceId}/repositories/${repoId}/issues/${issueId}/moves`;
   const response = await axios.post(url, {
     pipeline_id: targetPipelineId,
-    position: "top",
+    position: "top"
   });
   console.log(`POST ${url} -- [${response.status}]`);
 }
@@ -48,46 +49,54 @@ function extractIssueFromPattern(message) {
 }
 
 (async function () {
-  const inputs = {
-    zhToken: core.getInput("zh-token"),
-    zhWorkspaceId: core.getInput("zh-workspace-id"),
-    zhRepoId: core.getInput("zh-repository-id"),
-    commitMessage: core.getInput("commit-message"),
-    pipelineId: core.getInput("zh-target-pipeline-id"),
-    pipelineName: core.getInput("zh-target-pipeline-name"),
-  };
-  core.debug(`Inputs: ${inputs}`);
-  if (!inputs.pipelineId && !inputs.pipelineName) {
-    core.setFailed(
-      "one of zh-target-pipeline-id and zh-target-pipeline-name is required"
-    );
-    return;
-  }
-  let issueNumber = extractIssueFromPattern(inputs.commitMessage);
-  if (!issueNumber) {
-    core.info("Failed to extract issue number, action skipped");
-    return;
-  }
-  axios.defaults.headers.common["X-Authentication-Token"] = inputs.zhToken;
-  let pipelineId;
-  if (!inputs.pipelineId && inputs.pipelineName) {
-    pipelineId = await getIdOfPipelineByName(
-      inputs.zhRepoId,
-      inputs.zhWorkspaceId,
-      inputs.pipelineName
-    );
-    if (!pipelineId) {
-      core.setFailed("No pipeline name of " + pipelineName + " found");
+  try {
+    const inputs = {
+      zhToken: core.getInput("zh-token"),
+      zhWorkspaceId: core.getInput("zh-workspace-id"),
+      zhRepoId: core.getInput("zh-repository-id"),
+      commitMessage: core.getInput("commit-message"),
+      pipelineId: core.getInput("zh-target-pipeline-id"),
+      pipelineName: core.getInput("zh-target-pipeline-name"),
+    };
+    core.debug(`Inputs: ${inspect(inputs)}`);
+    if (!inputs.pipelineId && !inputs.pipelineName) {
+      core.setFailed(
+        "one of zh-target-pipeline-id and zh-target-pipeline-name is required"
+      );
       return;
     }
-  } else {
-    pipelineId = inputs.pipelineId;
-  }
+    let issuePattern = extractIssueFromPattern(inputs.commitMessage);
+    if (!issuePattern) {
+      core.info("Failed to extract issue number, action skipped");
+      return;
+    }
+    let issueNumber = issuePattern.number;
+    axios.defaults.headers.common["X-Authentication-Token"] = inputs.zhToken;
+    let pipelineId;
+    if (!inputs.pipelineId && inputs.pipelineName) {
+      pipelineId = await getIdOfPipelineByName(
+        inputs.zhRepoId,
+        inputs.zhWorkspaceId,
+        inputs.pipelineName
+      );
+      if (!pipelineId) {
+        core.setFailed("No pipeline name of " + pipelineName + " found");
+        return;
+      }
+    } else {
+      pipelineId = inputs.pipelineId;
+    }
 
-  await moveCardToPipeline(
-    inputs.zhRepoId,
-    inputs.zhWorkspaceId,
-    issueNumber,
-    pipelineId
-  );
+    core.info(`move issue ${issueNumber} to ${pipelineId}`);
+
+    await moveCardToPipeline(
+      inputs.zhRepoId,
+      inputs.zhWorkspaceId,
+      issueNumber,
+      pipelineId
+    );
+  } catch (err) {
+    core.debug(inspect(err));
+    core.setFailed(err.message);
+  }
 })();
