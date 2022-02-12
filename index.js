@@ -63,15 +63,56 @@ function getPipelineId(inputs) {
   return pipelineId;
 }
 
+function getIssuesFromPR(inputs) {
+  const API_URL = 'https://api.github.com/graphql';
+  const query = `query getIssueNumbers($url: URI!){
+    resource(url: $url) {
+      ... on PullRequest {
+        closingIssuesReferences(first: 10) {
+          nodes {
+            number
+          }
+        }
+      }
+    }
+  }`;
+
+  try {
+    const data = await axios.post(
+      API_URL,
+      {
+        query,
+        variables: {
+          url: inputs.prUrl,
+        },
+      },
+      {
+        headers: {
+          Authorization: 'Bearer ' + inputs.githubToken,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const issueNodes = data.resource.closingIssueReferences.nodes;
+    const issueNumbers = issueNodes.map((issueNode) => issueNode.number);
+    core.info(`data-${issueNumbers}`);
+    return issueNumbers;
+  } catch (e) {
+    core.setFailed(`Failed to get linked issues: ${e.message}`);
+    return;
+  }
+}
+
 (async function () {
   try {
     const inputs = {
       zhToken: core.getInput('zh-token'),
       zhWorkspaceId: core.getInput('zh-workspace-id'),
       zhRepoId: core.getInput('zh-repository-id'),
-      issueArray: core.getInput('issue-array'),
+      prUrl: core.getInput('pr-url'),
       pipelineId: core.getInput('zh-target-pipeline-id'),
       pipelineName: core.getInput('zh-target-pipeline-name'),
+      githubToken: core.getInput('github-token')
     };
     core.debug(`Inputs: ${inspect(inputs)}`);
     if (!inputs.pipelineId && !inputs.pipelineName) {
@@ -80,20 +121,22 @@ function getPipelineId(inputs) {
       );
       return;
     }
-    const issues = inputs.issueArray;
+    const issues = getIssuesFromPR(inputs);
     const issueNumbers = issues.map((issue) => extractIssueFromPattern(issue));
     axios.defaults.headers.common['X-Authentication-Token'] = inputs.zhToken;
     const pipelineId = getPipelineId(inputs);
 
     core.info(`move issues ${issueNumbers.join(', ')} to ${pipelineId}`);
 
-    issueNumbers(issueNumber => 
-      await moveCardToPipeline(
-        inputs.zhRepoId,
-        inputs.zhWorkspaceId,
-        issueNumber,
-        pipelineId
-      ))
+    issueNumbers(
+      (issueNumber) =>
+        await moveCardToPipeline(
+          inputs.zhRepoId,
+          inputs.zhWorkspaceId,
+          issueNumber,
+          pipelineId
+        )
+    );
   } catch (err) {
     core.debug(inspect(err));
     core.setFailed(err.message);
