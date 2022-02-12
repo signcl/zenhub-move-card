@@ -35,14 +35,14 @@ async function getIdOfPipelineByName(repoId, workspaceId, pipelineName) {
 function extractIssueFromPattern(message) {
   let res = [
     /#(?<number>\d+)/i,
-    /(?<owner>\w+)\/(?<name>issues)#(?<number>\d+)/i,
-    /https?:\/\/github.com\/(?<owner>\w+)\/(?<name>\w+)\/issues\/(?<number>\d+)/i,
+    /(?<owner>\w+)\/(?<repo>issues)#(?<number>\d+)/i,
+    /https?:\/\/github.com\/(?<owner>\w+)\/(?<repo>\w+)\/issues\/(?<number>\d+)/i,
   ];
 
   for (const re of res) {
     const match = re.exec(message);
     if (match.groups.number) {
-      return match.groups.number;
+      return { number: match.groups.number, repository: match.groups.repo };
     }
     core.info('Failed to extract issue number, action skipped');
     return;
@@ -71,6 +71,9 @@ function getIssuesFromPR(inputs) {
         closingIssuesReferences(first: 10) {
           nodes {
             number
+            repository {
+              id
+            }
           }
         }
       }
@@ -94,9 +97,8 @@ function getIssuesFromPR(inputs) {
       }
     );
     const issueNodes = data.resource.closingIssueReferences.nodes;
-    const issueNumbers = issueNodes.map((issueNode) => issueNode.number);
-    core.info(`data-${issueNumbers}`);
-    return issueNumbers;
+    core.info(`data-${issueNodes}`);
+    return issueNodes;
   } catch (e) {
     core.setFailed(`Failed to get linked issues: ${e.message}`);
     return;
@@ -108,11 +110,10 @@ function getIssuesFromPR(inputs) {
     const inputs = {
       zhToken: core.getInput('zh-token'),
       zhWorkspaceId: core.getInput('zh-workspace-id'),
-      zhRepoId: core.getInput('zh-repository-id'),
       prUrl: core.getInput('pr-url'),
       pipelineId: core.getInput('zh-target-pipeline-id'),
       pipelineName: core.getInput('zh-target-pipeline-name'),
-      githubToken: core.getInput('github-token')
+      githubToken: core.getInput('github-token'),
     };
     core.debug(`Inputs: ${inspect(inputs)}`);
     if (!inputs.pipelineId && !inputs.pipelineName) {
@@ -122,21 +123,18 @@ function getIssuesFromPR(inputs) {
       return;
     }
     const issues = getIssuesFromPR(inputs);
-    const issueNumbers = issues.map((issue) => extractIssueFromPattern(issue));
     axios.defaults.headers.common['X-Authentication-Token'] = inputs.zhToken;
     const pipelineId = getPipelineId(inputs);
 
-    core.info(`move issues ${issueNumbers.join(', ')} to ${pipelineId}`);
-
-    issueNumbers(
-      (issueNumber) =>
-        await moveCardToPipeline(
-          inputs.zhRepoId,
-          inputs.zhWorkspaceId,
-          issueNumber,
-          pipelineId
-        )
-    );
+    issues.forEach((issue) => {
+      await moveCardToPipeline(
+        issue.repository.id,
+        inputs.zhWorkspaceId,
+        issue.number,
+        pipelineId
+      );
+      core.info(`move issue ${issue.number} in ${issue.repo} to ${pipelineId}`);
+    });
   } catch (err) {
     core.debug(inspect(err));
     core.setFailed(err.message);
