@@ -1,9 +1,6 @@
 name: 'Move Card in Zenhub'
 description: 'This action integrates Zenhub api. To automatically move card between pipelines'
 inputs:
-  zh-repository-id:
-    description: 'repository id in zenhub'
-    required: true
   zh-token:
     description: 'token for zenhub api'
     required: true
@@ -16,8 +13,11 @@ inputs:
   zh-target-pipeline-name:
     description: 'target pipeline name in zenhub'
     required: false
-  commit-message:
-    description: 'commit message to parse issue'
+  github-token:
+    description: 'token for github api'
+    required: true
+  pr-url:
+    description: 'pr url to parse issues'
     required: true
 runs:
   using: 'node12'
