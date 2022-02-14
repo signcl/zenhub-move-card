@@ -32,23 +32,6 @@ async function getIdOfPipelineByName(repoId, workspaceId, pipelineName) {
   }
 }
 
-function extractIssueFromPattern(message) {
-  let res = [
-    /#(?<number>\d+)/i,
-    /(?<owner>\w+)\/(?<repo>issues)#(?<number>\d+)/i,
-    /https?:\/\/github.com\/(?<owner>\w+)\/(?<repo>\w+)\/issues\/(?<number>\d+)/i,
-  ];
-
-  for (const re of res) {
-    const match = re.exec(message);
-    if (match.groups.number) {
-      return { number: match.groups.number, repository: match.groups.repo };
-    }
-    core.info('Failed to extract issue number, action skipped');
-    return;
-  }
-}
-
 function getPipelineId(inputs) {
   let pipelineId;
   if (!inputs.pipelineId && inputs.pipelineName) {
