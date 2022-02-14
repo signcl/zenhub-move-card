@@ -3,8 +3,8 @@
   "version": "0.0.1",
   "description": "Move ZenHub issue between pipelines",
   "main": "index.js",
-  "repository": "https://github.com/aisensiy/zenhub-move-card",
-  "author": "aisensiy",
+  "repository": "https://github.com/Pavemint/zenhub-move-card",
+  "author": "Pavemint",
   "license": "MIT",
   "private": false,
   "dependencies": {
