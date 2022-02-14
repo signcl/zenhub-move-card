@@ -32,7 +32,7 @@ async function getIdOfPipelineByName(repoId, workspaceId, pipelineName) {
   }
 }
 
-function getPipelineId(inputs) {
+async function getPipelineId(inputs) {
   let pipelineId;
   if (!inputs.pipelineId && inputs.pipelineName) {
     pipelineId = await getIdOfPipelineByName(
@@ -108,9 +108,9 @@ function getPipelineId(inputs) {
     const issues = await getIssuesFromPR(inputs);
     core.info(`Issues- ${issues}`)
     axios.defaults.headers.common['X-Authentication-Token'] = inputs.zhToken;
-    const pipelineId = getPipelineId(inputs);
+    const pipelineId = await getPipelineId(inputs);
 
-    issues.forEach((issue) => {
+    issues.forEach(async (issue) => {
       await moveCardToPipeline(
         issue.repository.id,
         inputs.zhWorkspaceId,
